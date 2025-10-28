@@ -1,0 +1,358 @@
+openapi: 3.0.3
+info:
+  title: Seven Service API - Taller de Bicicletas
+  description: |
+    API REST para la gestión integral de un taller de bicicletas.
+    
+    ## Autenticación
+    La API utiliza sesiones PHP para autenticación. Debes iniciar sesión primero.
+    
+    ## Roles
+    - **admin**: Acceso completo al sistema
+    - **tecnico**: Gestión de órdenes y consulta de inventario
+    - **encargado_almacen**: Gestión completa de inventario
+    
+  version: 1.0.0
+  contact:
+    name: Seven Service
+    email: soporte@sevenservice.com
+
+servers:
+  - url: http://localhost/UNIVERSIDAD/Integrador/7service/public
+    description: Servidor de desarrollo local
+
+tags:
+  - name: Autenticación
+    description: Endpoints de login y logout
+  - name: Dashboard
+    description: Estadísticas y visión general
+  - name: Clientes
+    description: Gestión de clientes
+  - name: Órdenes
+    description: Órdenes de servicio
+  - name: Inventario
+    description: Productos y stock
+
+paths:
+  /login:
+    post:
+      tags:
+        - Autenticación
+      summary: Iniciar sesión
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                correo:
+                  type: string
+                  format: email
+                  example: admin@sevenservice.com
+                password:
+                  type: string
+                  format: password
+                  example: admin123
+              required:
+                - correo
+                - password
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Login exitoso
+                  redirect:
+                    type: string
+                    example: /dashboard
+        '401':
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /logout:
+    get:
+      tags:
+        - Autenticación
+      summary: Cerrar sesión
+      responses:
+        '302':
+          description: Redirige al login
+
+  /api/estadisticas:
+    get:
+      tags:
+        - Dashboard
+      summary: Obtener estadísticas del taller
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: fecha_desde
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Fecha de inicio (YYYY-MM-DD)
+        - name: fecha_hasta
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Fecha de fin (YYYY-MM-DD)
+      responses:
+        '200':
+          description: Estadísticas obtenidas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Estadisticas'
+
+  /clientes:
+    get:
+      tags:
+        - Clientes
+      summary: Listar clientes
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Término de búsqueda
+      responses:
+        '200':
+          description: Lista de clientes
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /api/clientes/buscar:
+    get:
+      tags:
+        - Clientes
+      summary: Buscar clientes (API)
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: term
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Término de búsqueda
+      responses:
+        '200':
+          description: Resultados de búsqueda
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Cliente'
+
+  /clientes/crear:
+    post:
+      tags:
+        - Clientes
+      summary: Crear nuevo cliente
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClienteInput'
+      responses:
+        '200':
+          description: Cliente creado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  id:
+                    type: integer
+
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: PHPSESSID
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Error en la operación
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+    Estadisticas:
+      type: object
+      properties:
+        total_ordenes:
+          type: integer
+          example: 45
+        pendientes:
+          type: integer
+          example: 8
+        en_reparacion:
+          type: integer
+          example: 12
+        entregadas:
+          type: integer
+          example: 20
+        total_ventas:
+          type: number
+          format: float
+          example: 12500.50
+        promedio_venta:
+          type: number
+          format: float
+          example: 278.90
+
+    Cliente:
+      type: object
+      properties:
+        id_cliente:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          example: Juan Pérez
+        contacto_telefono:
+          type: string
+          example: "987654321"
+        contacto_email:
+          type: string
+          format: email
+          example: juan@example.com
+        direccion:
+          type: string
+          example: Av. Principal 123
+        fecha_registro:
+          type: string
+          format: date-time
+        activo:
+          type: boolean
+
+    ClienteInput:
+      type: object
+      required:
+        - nombre
+        - contacto_telefono
+      properties:
+        nombre:
+          type: string
+          minLength: 3
+          example: Juan Pérez
+        contacto_telefono:
+          type: string
+          example: "987654321"
+        contacto_email:
+          type: string
+          format: email
+          example: juan@example.com
+        direccion:
+          type: string
+          example: Av. Principal 123
+        notas:
+          type: string
+          example: Cliente frecuente
+
+    Producto:
+      type: object
+      properties:
+        id_producto:
+          type: integer
+        sku:
+          type: string
+        nombre:
+          type: string
+        descripcion:
+          type: string
+        precio_compra:
+          type: number
+          format: float
+        precio_venta:
+          type: number
+          format: float
+        stock_actual:
+          type: integer
+        stock_minimo:
+          type: integer
+        activo:
+          type: boolean
+
+    OrdenServicio:
+      type: object
+      properties:
+        id_orden:
+          type: integer
+        id_cliente:
+          type: integer
+        id_bicicleta:
+          type: integer
+        estado:
+          type: string
+          enum:
+            - Pendiente
+            - En Diagnostico
+            - Esperando Aprobacion
+            - En Reparacion
+            - Listo para Entrega
+            - Entregado
+            - Cancelado
+        prioridad:
+          type: string
+          enum:
+            - Baja
+            - Normal
+            - Alta
+            - Urgente
+        descripcion_problema:
+          type: string
+        costo_total:
+          type: number
+          format: float
+        fecha_creacion:
+          type: string
+          format: date-time
