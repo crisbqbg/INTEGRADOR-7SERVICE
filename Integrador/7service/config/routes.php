@@ -12,7 +12,7 @@ use App\Core\Router;
 $router = new Router();
 
 // ========================================
-// RUTAS PÚBLICAS (Sin autenticación)
+// RUTAS PÚBLICAS (Sin autenticación) . 
 // ========================================
 
 // Autenticación
