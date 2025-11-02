@@ -115,6 +115,106 @@ class OrdenServicio extends Model
     }
     
     /**
+     * Crea una nueva bicicleta
+     * 
+     * @param array $data Los datos de la bicicleta
+     * @return int El ID de la bicicleta creada
+     */
+    public function createBicicleta(array $data): int
+    {
+        // Verificar si la columna se llama año_fabricacion o anio_fabricacion
+        $query = "INSERT INTO bicicletas (id_cliente, marca, modelo, tipo, color, numero_serie, año_fabricacion, notas) 
+                  VALUES (:id_cliente, :marca, :modelo, :tipo, :color, :numero_serie, :anio_fabricacion, :notas)";
+        
+        $params = [
+            ':id_cliente' => $data['id_cliente'],
+            ':marca' => $data['marca'],
+            ':modelo' => $data['modelo'],
+            ':tipo' => $data['tipo'] ?? null,
+            ':color' => $data['color'] ?? null,
+            ':numero_serie' => $data['numero_serie'] ?? null,
+            ':anio_fabricacion' => $data['año_fabricacion'] ?? null,
+            ':notas' => $data['notas'] ?? null
+        ];
+        
+        $this->db->execute($query, $params);
+        return $this->db->lastInsertId();
+    }
+    
+    /**
+     * Genera un código único de seguimiento
+     * 
+     * @return string El código de seguimiento (8 caracteres alfanuméricos)
+     */
+    public function generarCodigoSeguimiento(): string
+    {
+        do {
+            // Generar código alfanumérico de 8 caracteres
+            $codigo = strtoupper(substr(bin2hex(random_bytes(4)), 0, 8));
+            
+            // Verificar que no exista
+            $existe = $this->findOneBy(['codigo_seguimiento' => $codigo]);
+        } while ($existe);
+        
+        return $codigo;
+    }
+    
+    /**
+     * Busca una orden por su código de seguimiento
+     * 
+     * @param string $codigo El código de seguimiento
+     * @return array|false La orden con información para cliente
+     */
+    public function getByCodigo(string $codigo)
+    {
+        $query = "SELECT 
+                    o.id_orden,
+                    o.codigo_seguimiento,
+                    o.fecha_creacion,
+                    o.fecha_estimada_entrega,
+                    o.fecha_finalizacion,
+                    o.estado,
+                    o.prioridad,
+                    o.descripcion_problema,
+                    o.diagnostico_tecnico,
+                    o.costo_total,
+                    o.requiere_aprobacion,
+                    o.aprobado_por_cliente,
+                    b.marca as bicicleta_marca,
+                    b.modelo as bicicleta_modelo,
+                    b.tipo as bicicleta_tipo,
+                    b.color as bicicleta_color,
+                    ua.nombre as tecnico_asignado
+                  FROM {$this->table} o
+                  JOIN bicicletas b ON o.id_bicicleta = b.id_bicicleta
+                  LEFT JOIN usuarios ua ON o.id_usuario_asignado = ua.id_usuario
+                  WHERE o.codigo_seguimiento = :codigo";
+        
+        return $this->db->queryOne($query, [':codigo' => $codigo]);
+    }
+    
+    /**
+     * Obtiene el historial de estados para vista pública
+     * 
+     * @param string $codigo El código de seguimiento
+     * @return array El historial de estados
+     */
+    public function getHistorialByCodigo(string $codigo): array
+    {
+        $query = "SELECT 
+                    h.fecha_cambio,
+                    h.estado_anterior,
+                    h.estado_nuevo,
+                    h.comentario
+                  FROM historial_estados_orden h
+                  JOIN ordenes_servicio o ON h.id_orden = o.id_orden
+                  WHERE o.codigo_seguimiento = :codigo
+                  ORDER BY h.fecha_cambio ASC";
+        
+        return $this->db->query($query, [':codigo' => $codigo]);
+    }
+    
+    /**
      * Crea una nueva orden de servicio
      * 
      * @param array $data Los datos de la orden
@@ -122,6 +222,11 @@ class OrdenServicio extends Model
      */
     public function createOrden(array $data): int
     {
+        // Generar código de seguimiento si no existe
+        if (!isset($data['codigo_seguimiento'])) {
+            $data['codigo_seguimiento'] = $this->generarCodigoSeguimiento();
+        }
+        
         // Asegurar que tenga valores por defecto
         $defaults = [
             'estado' => 'Pendiente',
@@ -256,5 +361,57 @@ class OrdenServicio extends Model
                   {$whereClause}";
         
         return $this->db->queryOne($query, $params) ?: [];
+    }
+    
+    /**
+     * Cuenta órdenes por condiciones
+     * 
+     * @param array $conditions Condiciones para el conteo
+     * @return int El número de órdenes
+     */
+    public function countBy(array $conditions): int
+    {
+        $where = [];
+        $params = [];
+        
+        foreach ($conditions as $key => $value) {
+            if ($key === 'fecha') {
+                $where[] = "DATE(fecha_creacion) = :fecha";
+                $params[':fecha'] = $value;
+            } else {
+                $where[] = "{$key} = :{$key}";
+                $params[":{$key}"] = $value;
+            }
+        }
+        
+        $whereClause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
+        
+        $query = "SELECT COUNT(*) as total FROM {$this->table} {$whereClause}";
+        $result = $this->db->queryOne($query, $params);
+        
+        return (int) ($result['total'] ?? 0);
+    }
+    
+    /**
+     * Obtiene las órdenes asignadas a un técnico
+     * 
+     * @param int $tecnicoId El ID del técnico
+     * @return array Las órdenes del técnico
+     */
+    public function getOrdenesByTecnico(int $tecnicoId): array
+    {
+        $query = "SELECT 
+                    o.*,
+                    c.nombre as cliente_nombre,
+                    b.marca as bicicleta_marca,
+                    b.modelo as bicicleta_modelo
+                  FROM {$this->table} o
+                  JOIN clientes c ON o.id_cliente = c.id_cliente
+                  JOIN bicicletas b ON o.id_bicicleta = b.id_bicicleta
+                  WHERE o.id_usuario_asignado = :tecnico_id
+                  AND o.estado IN ('pendiente', 'en_proceso', 'en_espera')
+                  ORDER BY o.fecha_creacion DESC";
+        
+        return $this->db->query($query, [':tecnico_id' => $tecnicoId]);
     }
 }

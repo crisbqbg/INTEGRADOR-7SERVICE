@@ -33,6 +33,13 @@ class DashboardController extends Controller
     {
         $usuario = $this->auth();
         
+        // Si es técnico, mostrar dashboard específico
+        if ($_SESSION['usuario_rol'] === 'tecnico') {
+            $this->dashboardTecnico();
+            return;
+        }
+        
+        // Dashboard de admin
         // Obtener estadísticas generales
         $estadisticas = $this->ordenModel->getEstadisticas();
         
@@ -52,6 +59,43 @@ class DashboardController extends Controller
             'ordenesPendientes' => $ordenesPendientes,
             'productosStockBajo' => $productosStockBajo,
             'ordenesRecientes' => $ordenesRecientes
+        ]);
+    }
+    
+    /**
+     * Dashboard específico para técnicos
+     */
+    private function dashboardTecnico(): void
+    {
+        $tecnicoId = $_SESSION['usuario_id'];
+        
+        // Estadísticas del técnico
+        $stats = [
+            'ordenes_hoy' => $this->ordenModel->countBy([
+                'id_usuario_asignado' => $tecnicoId,
+                'fecha' => date('Y-m-d')
+            ]),
+            'ordenes_pendientes' => $this->ordenModel->countBy([
+                'id_usuario_asignado' => $tecnicoId,
+                'estado' => 'pendiente'
+            ]),
+            'ordenes_proceso' => $this->ordenModel->countBy([
+                'id_usuario_asignado' => $tecnicoId,
+                'estado' => 'en_proceso'
+            ]),
+            'ordenes_completadas_hoy' => $this->ordenModel->countBy([
+                'id_usuario_asignado' => $tecnicoId,
+                'estado' => 'completado',
+                'fecha' => date('Y-m-d')
+            ])
+        ];
+        
+        // Órdenes activas del técnico
+        $ordenes_activas = $this->ordenModel->getOrdenesByTecnico($tecnicoId);
+        
+        $this->view('dashboard/tecnico', [
+            'stats' => $stats,
+            'ordenes_activas' => $ordenes_activas
         ]);
     }
     

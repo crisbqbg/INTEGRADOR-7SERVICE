@@ -131,4 +131,48 @@ class Producto extends Model
         $query = "SELECT * FROM proveedores WHERE activo = 1 ORDER BY nombre ASC";
         return $this->db->query($query);
     }
+    
+    /**
+     * Obtiene productos activos con filtros opcionales
+     * 
+     * @param array $filters Filtros opcionales (categoria, etc)
+     * @return array Los productos
+     */
+    public function getProductosActivos(array $filters = []): array
+    {
+        $query = "SELECT p.*, 
+                         c.nombre as categoria_nombre,
+                         pr.nombre as proveedor_nombre,
+                         (p.precio_venta - p.precio_compra) as margen
+                  FROM {$this->table} p
+                  LEFT JOIN categorias c ON p.id_categoria = c.id_categoria
+                  LEFT JOIN proveedores pr ON p.id_proveedor = pr.id_proveedor
+                  WHERE p.activo = 1";
+        
+        $params = [];
+        
+        if (!empty($filters['categoria'])) {
+            $query .= " AND p.id_categoria = :categoria";
+            $params[':categoria'] = $filters['categoria'];
+        }
+        
+        $query .= " ORDER BY p.nombre ASC";
+        
+        return $this->db->query($query, $params);
+    }
+    
+    /**
+     * Obtiene el valor total del inventario
+     * 
+     * @return float El valor total
+     */
+    public function getValorTotalInventario(): float
+    {
+        $query = "SELECT SUM(stock_actual * precio_compra) as total 
+                  FROM {$this->table} 
+                  WHERE activo = 1";
+        
+        $result = $this->db->queryOne($query);
+        return (float) ($result['total'] ?? 0);
+    }
 }

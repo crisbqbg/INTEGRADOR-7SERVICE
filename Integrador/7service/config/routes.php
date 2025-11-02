@@ -12,7 +12,7 @@ use App\Core\Router;
 $router = new Router();
 
 // ========================================
-// RUTAS PÚBLICAS (Sin autenticación) . 
+// RUTAS PÚBLICAS (Sin autenticación)
 // ========================================
 
 // Autenticación
@@ -20,6 +20,12 @@ $router->get('/', 'AuthController@showLogin');
 $router->get('/login', 'AuthController@showLogin');
 $router->post('/login', 'AuthController@login');
 $router->get('/logout', 'AuthController@logout');
+
+// Seguimiento Público (sin autenticación)
+$router->get('/seguimiento', 'SeguimientoController@index');
+$router->post('/seguimiento/buscar', 'SeguimientoController@buscar');
+$router->get('/seguimiento/{codigo}', 'SeguimientoController@ver');
+$router->get('/api/seguimiento/{codigo}', 'SeguimientoController@apiEstado');
 
 // ========================================
 // RUTAS PROTEGIDAS (Requieren autenticación)
@@ -41,8 +47,8 @@ $router->get('/api/clientes/buscar', 'ClienteController@apiSearch', ['AuthMiddle
 
 // Órdenes de Servicio
 $router->get('/ordenes', 'OrdenController@index', ['AuthMiddleware']);
-$router->get('/ordenes/crear', 'OrdenController@create', ['AuthMiddleware']);
-$router->post('/ordenes/crear', 'OrdenController@store', ['AuthMiddleware']);
+$router->get('/ordenes/nuevo', 'OrdenController@create', ['AuthMiddleware']);
+$router->post('/ordenes/nuevo', 'OrdenController@store', ['AuthMiddleware']);
 $router->get('/ordenes/{id}', 'OrdenController@show', ['AuthMiddleware']);
 $router->get('/ordenes/{id}/editar', 'OrdenController@edit', ['AuthMiddleware']);
 $router->post('/ordenes/{id}/actualizar', 'OrdenController@update', ['AuthMiddleware']);
@@ -50,8 +56,8 @@ $router->post('/ordenes/{id}/cambiar-estado', 'OrdenController@cambiarEstado', [
 
 // Inventario/Productos
 $router->get('/inventario', 'InventarioController@index', ['AuthMiddleware']);
-$router->get('/inventario/crear', 'InventarioController@create', ['AuthMiddleware']);
-$router->post('/inventario/crear', 'InventarioController@store', ['AuthMiddleware']);
+$router->get('/inventario/nuevo', 'InventarioController@create', ['AuthMiddleware']);
+$router->post('/inventario/nuevo', 'InventarioController@store', ['AuthMiddleware']);
 $router->get('/inventario/{id}/editar', 'InventarioController@edit', ['AuthMiddleware']);
 $router->post('/inventario/{id}/actualizar', 'InventarioController@update', ['AuthMiddleware']);
 $router->post('/inventario/{id}/eliminar', 'InventarioController@delete', ['AuthMiddleware']);
