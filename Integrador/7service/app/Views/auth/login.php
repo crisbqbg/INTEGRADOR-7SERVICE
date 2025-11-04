@@ -70,7 +70,7 @@
                     </p>
                     <ul class="text-xs text-blue-600 space-y-1">
                         <li><strong>Admin:</strong> admin@sevenservice.com / admin123</li>
-                        <li><strong>Técnico:</strong> tecnico@sevenservice.com / admin123</li>
+                        <li><strong>Técnico:</strong> tecnico1@sevenservice.com / tecnico123</li>
                     </ul>
                 </div>
             </form>
